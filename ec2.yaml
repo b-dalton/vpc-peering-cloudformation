@@ -1,0 +1,119 @@
+Description: Deploys 2 EC2 instances, one in each public subnet of the Requester & Accepter VPCs
+
+Parameters:
+  Owner:
+    Description: An owner name that is prefixed to resource names
+    Type: String
+    Default: Ben
+  AmiID:
+    Description: AMI which will be used to launch EC2 Instances
+    Type: String
+    Default: "ami-03c07bedab170b21a"
+  InstanceType:
+    Description: EC2 Instance type
+    Type: String
+    Default: "t2.micro"
+
+Resources:
+  # EC2 Instance in Requester VPC Subnet
+  EC2InstanceRequester:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiID
+      InstanceType: !Ref InstanceType
+      SubnetId: !ImportValue PublicSubnetRequester
+      SecurityGroupIds:
+        - !GetAtt SecurityGroupRequester.GroupId
+      Tags:
+        - Key: Name
+          Value: Requester VPC Instance
+
+  SecurityGroupRequester:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: vpc-requester-instance-sg
+      GroupDescription: Enable SSH access from the EC2_INSTANCE_CONNECT IP Address range (eu-west-2) & ping access from Accepter VPC
+      VpcId: !ImportValue VPCRequesterId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          Description: Allows instance to be connected via EC2 Instance Connect
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 3.8.37.24/29 # EC2_INSTANCE_CONNECT IP for eu-west-2 (London) Region
+          # Below not needed
+#        - IpProtocol: icmp # For ping
+#          FromPort: 8
+#          ToPort: -1
+#          CidrIp: 10.0.0.0/24
+#           To Delete - Open ping to all public IPs to demo Instances are accessible over public internet
+        - IpProtocol: icmp # For ping all public IPs
+          Description: Allows ping from any Public IP
+          FromPort: 8
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+# TODO: Demo - Update EC2 security group to allow ping from Accepter VPC
+        - IpProtocol: icmp
+          Description: Allows ping from Accepter VPC CIDR
+          FromPort: 8
+          ToPort: -1
+          CidrIp: !ImportValue VPCAccepterCidr
+# TODO: ABOVE BLOCK
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Name
+          Value: Requester Instance SG
+
+  # EC2 Instance in Accepter VPC Subnet
+  EC2InstanceAccepter:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiID
+      InstanceType: !Ref InstanceType
+      SubnetId: !ImportValue PublicSubnetAccepter
+      SecurityGroupIds:
+        - !GetAtt SecurityGroupAccepter.GroupId
+      Tags:
+        - Key: Name
+          Value: Accepter VPC Instance
+  SecurityGroupAccepter:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: vpc-accepter-instance-sg
+      GroupDescription: Enable SSH access from the EC2_INSTANCE_CONNECT IP Address range (eu-west-2) & ping access from Requester VPC
+      VpcId: !ImportValue VPCAccepterId
+      SecurityGroupIngress:
+        - IpProtocol: tcp # For EC2 Instance Connect
+          Description: Allows instance to be connected via EC2 Instance Connect
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 3.8.37.24/29 # EC2_INSTANCE_CONNECT IP for eu-west-2 (London) Region
+          # Below not needed
+#        - IpProtocol: icmp # For ping
+#          FromPort: 8
+#          ToPort: -1
+#          CidrIp: 10.0.0.0/24
+#           To Delete -  Open ping to all public IPs to demo Instances are accessible over public internet
+        - IpProtocol: icmp # For ping all public IPs
+          Description: Allows ping from any Public IP
+          FromPort: 8
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+# TODO: Demo - Update EC2 security group to allow ping from Requester VPC
+        - IpProtocol: icmp
+          Description: Allows ping from Requester VPC CIDR
+          FromPort: 8
+          ToPort: -1
+          CidrIp: !ImportValue VPCRequesterCidr
+# TODO: ABOVE BLOCK
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Name
+          Value: Accepter Instance SG

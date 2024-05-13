@@ -1,0 +1,218 @@
+Description:  Deploys two VPCs (Peering Connection "Requester" & "Accepter"),
+  each with a Public Subnet in the same Availability Zone.
+  It deploys an internet gateway, with a Route Table and a default route on the public subnets for each VPC.
+
+Parameters:
+  Owner:
+    Description: An owner name that is prefixed to resource names
+    Type: String
+    Default: Ben
+  VpcCIDRRequester:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.192.0.0/16
+  PublicSubnetCIDRRequester:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in VPC Requester
+    Type: String
+    Default: 10.192.10.0/24
+  VpcCIDRAccepter:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 192.168.0.0/20
+  PublicSubnetCIDRAccepter:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in VPC Accepter
+    Type: String
+    Default: 192.168.10.0/24
+
+Resources:
+  # Requester VPC, Subnet, Route Table, Routes and Internet Gateway
+  VPCRequester:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDRRequester
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: Requester
+        - Key: Owner
+          Value: !Ref Owner
+
+  PublicSubnetRequester:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPCRequester
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnetCIDRRequester
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub VPC Requester Public Subnet (AZ1) - ${Owner}
+
+  InternetGatewayRequester:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Requester VPC Internet Gateway
+        - Key: Owner
+          Value: !Ref Owner
+
+  InternetGatewayAttachmentRequester:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGatewayRequester
+      VpcId: !Ref VPCRequester
+
+  PublicRouteTableRequester:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCRequester
+      Tags:
+        - Key: Name
+          Value: !Sub VPC Requester Public Route Table - ${Owner}
+
+  DefaultPublicRouteRequester:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachmentRequester
+    Properties:
+      RouteTableId: !Ref PublicRouteTableRequester
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGatewayRequester
+
+  PublicSubnetARouteTableAssociationRequester:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTableRequester
+      SubnetId: !Ref PublicSubnetRequester
+# -----------------------------------------------------------------
+  # Accepter VPC, Subnet, Route Table, Routes and Internet Gateway
+  VPCAccepter:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDRAccepter
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: Accepter
+        - Key: Owner
+          Value: !Ref Owner
+
+  PublicSubnetAccepter:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPCAccepter
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnetCIDRAccepter
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub VPC Accepter Public Subnet (AZ1) - ${Owner}
+
+  InternetGatewayAccepter:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Accepter VPC Internet Gateway
+        - Key: Owner
+          Value: !Ref Owner
+
+  InternetGatewayAttachmentAccepter:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGatewayAccepter
+      VpcId: !Ref VPCAccepter
+
+
+  PublicRouteTableAccepter:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCAccepter
+      Tags:
+        - Key: Name
+          Value: !Sub VPC Accepter Public Route Table - ${Owner}
+
+  DefaultPublicRouteAccepter:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachmentAccepter
+    Properties:
+      RouteTableId: !Ref PublicRouteTableAccepter
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGatewayAccepter
+
+  PublicSubnetARouteTableAssociationAccepter:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTableAccepter
+      SubnetId: !Ref PublicSubnetAccepter
+
+  #--------------------------------------------------------------------------------------------------
+  # VPC Peering Connection between Requester & Accepter VPCs & Routes for each VPC
+  #--------------------------------------------------------------------------------------------------
+  VpcPeeringConnection:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      VpcId: !Ref VPCRequester
+      PeerVpcId: !Ref VPCAccepter
+      Tags:
+        - Key: Name
+          Value: Requester/Accepter VPC Peering Connection
+        - Key: Owner
+          Value: !Ref Owner
+
+# TODO: Add 2 routes below for VPC Peering Connection
+  VpcPeeringPublicRouteRequester:
+    Type: AWS::EC2::Route
+#    DependsOn: VpcPeeringConnection // Not needed
+    Properties:
+      RouteTableId: !Ref PublicRouteTableRequester
+      DestinationCidrBlock: !GetAtt VPCAccepter.CidrBlock # Accepter VPC CIDR Block
+      VpcPeeringConnectionId: !Ref VpcPeeringConnection
+
+  VpcPeeringPublicRouteAccepter:
+    Type: AWS::EC2::Route
+#    DependsOn: VpcPeeringConnection // Not needed
+    Properties:
+      RouteTableId: !Ref PublicRouteTableAccepter
+      DestinationCidrBlock: !GetAtt VPCRequester.CidrBlock # Requester VPC CIDR Block
+      VpcPeeringConnectionId: !Ref VpcPeeringConnection
+# TODO: ADD ABOVE BLOCK (UNCOMMENT)
+
+Outputs:
+  VPCRequesterId:
+    Description: ID of the VPC Requester
+    Value: !Ref VPCRequester
+    Export:
+      Name: VPCRequesterId
+
+  VPCRequesterCidr:
+    Description: A reference to the created VPC Requester CIDR block
+    Value: !GetAtt VPCRequester.CidrBlock
+    Export:
+      Name: VPCRequesterCidr
+
+  PublicSubnetRequester:
+    Description: Public subnet of VPC Requester
+    Value: !Ref PublicSubnetRequester
+    Export:
+      Name: PublicSubnetRequester
+
+  VPCAccepterId:
+    Description: ID of the VPC Requester
+    Value: !Ref VPCAccepter
+    Export:
+      Name: VPCAccepterId
+
+  VPCAccepterCidr:
+    Description: A reference to the created VPC Accepter CIDR block
+    Value: !GetAtt VPCAccepter.CidrBlock
+    Export:
+      Name: VPCAccepterCidr
+
+  PublicSubnetAccepter:
+    Description: Public subnet of VPC Accepter
+    Value: !Ref PublicSubnetAccepter
+    Export:
+      Name: PublicSubnetAccepter
