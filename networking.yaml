@@ -162,10 +162,8 @@ Resources:
         - Key: Owner
           Value: !Ref Owner
 
-# TODO: Add 2 routes below for VPC Peering Connection
   VpcPeeringPublicRouteRequester:
     Type: AWS::EC2::Route
-#    DependsOn: VpcPeeringConnection // Not needed
     Properties:
       RouteTableId: !Ref PublicRouteTableRequester
       DestinationCidrBlock: !GetAtt VPCAccepter.CidrBlock # Accepter VPC CIDR Block
@@ -173,12 +171,10 @@ Resources:
 
   VpcPeeringPublicRouteAccepter:
     Type: AWS::EC2::Route
-#    DependsOn: VpcPeeringConnection // Not needed
     Properties:
       RouteTableId: !Ref PublicRouteTableAccepter
       DestinationCidrBlock: !GetAtt VPCRequester.CidrBlock # Requester VPC CIDR Block
       VpcPeeringConnectionId: !Ref VpcPeeringConnection
-# TODO: ADD ABOVE BLOCK (UNCOMMENT)
 
 Outputs:
   VPCRequesterId:

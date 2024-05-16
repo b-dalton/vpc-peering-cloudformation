@@ -40,24 +40,16 @@ Resources:
           FromPort: 22
           ToPort: 22
           CidrIp: 3.8.37.24/29 # EC2_INSTANCE_CONNECT IP for eu-west-2 (London) Region
-          # Below not needed
-#        - IpProtocol: icmp # For ping
-#          FromPort: 8
-#          ToPort: -1
-#          CidrIp: 10.0.0.0/24
-#           To Delete - Open ping to all public IPs to demo Instances are accessible over public internet
-        - IpProtocol: icmp # For ping all public IPs
+        - IpProtocol: icmp
           Description: Allows ping from any Public IP
           FromPort: 8
           ToPort: -1
           CidrIp: 0.0.0.0/0
-# TODO: Demo - Update EC2 security group to allow ping from Accepter VPC
         - IpProtocol: icmp
           Description: Allows ping from Accepter VPC CIDR
           FromPort: 8
           ToPort: -1
           CidrIp: !ImportValue VPCAccepterCidr
-# TODO: ABOVE BLOCK
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
@@ -86,29 +78,21 @@ Resources:
       GroupDescription: Enable SSH access from the EC2_INSTANCE_CONNECT IP Address range (eu-west-2) & ping access from Requester VPC
       VpcId: !ImportValue VPCAccepterId
       SecurityGroupIngress:
-        - IpProtocol: tcp # For EC2 Instance Connect
+        - IpProtocol: tcp
           Description: Allows instance to be connected via EC2 Instance Connect
           FromPort: 22
           ToPort: 22
           CidrIp: 3.8.37.24/29 # EC2_INSTANCE_CONNECT IP for eu-west-2 (London) Region
-          # Below not needed
-#        - IpProtocol: icmp # For ping
-#          FromPort: 8
-#          ToPort: -1
-#          CidrIp: 10.0.0.0/24
-#           To Delete -  Open ping to all public IPs to demo Instances are accessible over public internet
-        - IpProtocol: icmp # For ping all public IPs
+        - IpProtocol: icmp
           Description: Allows ping from any Public IP
           FromPort: 8
           ToPort: -1
           CidrIp: 0.0.0.0/0
-# TODO: Demo - Update EC2 security group to allow ping from Requester VPC
         - IpProtocol: icmp
           Description: Allows ping from Requester VPC CIDR
           FromPort: 8
           ToPort: -1
           CidrIp: !ImportValue VPCRequesterCidr
-# TODO: ABOVE BLOCK
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
